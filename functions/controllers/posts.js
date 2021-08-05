@@ -21,16 +21,21 @@ exports.getAllPosts = async (req, res) => {
   }
 };
 
-exports.postOnePost = async (req, res) => {
+exports.createPost = async (req, res) => {
   const newPost = {
     body: req.body.body,
     userHandle: req.user.handle,
+    userImage: req.user.imageUrl,
     createdAt: new Date().toISOString(),
+    likeCount: 0,
+    commentCount: 0,
   };
 
   try {
     const doc = await db.collection('posts').add(newPost);
-    res.json({ message: `document ${doc.id} created successfully` });
+    const createdPost = newPost;
+    createdPost.postId = doc.id;
+    res.json({ createdPost });
   } catch (err) {
     res.status(500).json({ error: 'something went wrong' });
     console.error(err);
@@ -65,7 +70,9 @@ exports.getPost = async (req, res) => {
   }
 };
 
-exports.postComment = async (req, res) => {
+exports.commentPost = async (req, res) => {
+  const postDocRef = db.doc(`/posts/${req.params.postId}`);
+  const commentColRef = db.collection('comments');
   if (req.body.body.trim() === '')
     res.status(400).json({ error: 'Must not be empry' });
 
@@ -78,11 +85,105 @@ exports.postComment = async (req, res) => {
   };
 
   try {
-    const doc = await db.doc(`/posts/${req.params.postId}`).get();
+    const doc = await postDocRef.get();
     if (!doc.exists) res.status(404).json({ error: 'Posts not found' });
 
-    await db.collection('comments').add(newComment);
+    await postDocRef.update({ commentCount: doc.data().commentCount + 1 });
+
+    await commentColRef.add(newComment);
     res.json(newComment);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.code });
+  }
+};
+
+exports.likePost = async (req, res) => {
+  const likeColRef = db
+    .collection('likes')
+    .where('userHandle', '==', req.user.handle)
+    .where('postId', '==', req.params.postId)
+    .limit(1);
+  const postDocRef = db.doc(`/posts/${req.params.postId}`);
+
+  let postData = {};
+  try {
+    let postDoc = await postDocRef.get();
+    if (postDoc.exists) {
+      postData = postDoc.data();
+      postData.postId = postDoc.id;
+
+      let likeCol = await likeColRef.get();
+      console.log(likeCol);
+      if (likeCol.empty) {
+        await db.collection('likes').add({
+          postId: req.params.postId,
+          userHandle: req.user.handle,
+        });
+
+        postData.likeCount++;
+        await postDocRef.update({ likeCount: postData.likeCount });
+        res.json(postData);
+      } else {
+        res.status(400).json({ error: 'Scream already liked' });
+      }
+    } else {
+      res.status(404).json({ error: 'Post not found!' });
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.code });
+  }
+};
+
+exports.unlikePost = async (req, res) => {
+  const likeColRef = db
+    .collection('likes')
+    .where('userHandle', '==', req.user.handle)
+    .where('postId', '==', req.params.postId)
+    .limit(1);
+  const postDocRef = db.doc(`/posts/${req.params.postId}`);
+
+  let postData = {};
+  try {
+    let postDoc = await postDocRef.get();
+    if (postDoc.exists) {
+      postData = postDoc.data();
+      postData.postId = postDoc.id;
+
+      let likeCol = await likeColRef.get();
+      if (likeCol.empty) {
+        res.status(404).json({ error: 'Post not liked!' });
+      } else {
+        console.log(likeCol.docs[0].data().id);
+        await db.doc(`likes/${likeCol.docs[0].id}`).delete();
+        postData.likeCount--;
+        await postDocRef.update({ likeCount: postData.likeCount });
+        res.json(postData);
+      }
+    } else {
+      res.status(404).json({ error: 'Post not found!' });
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.code });
+  }
+};
+
+exports.deletePost = async (req, res) => {
+  const postDocRef = db.doc(`/posts/${req.params.postId}`);
+
+  try {
+    const postDoc = await postDocRef.get();
+    if (!postDoc.exists) {
+      res.status(404).json({ error: 'Post not found' });
+    }
+    if (postDoc.data().userHandle !== req.user.handle) {
+      res.status(403).json({ error: 'Unauthorized' });
+    } else {
+      await postDocRef.delete();
+      res.json({ message: 'Post deleted succesfully' });
+    }
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.code });

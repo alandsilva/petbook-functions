@@ -5,9 +5,12 @@ const FBAuth = require('./utils/fbAuth');
 
 const {
   getAllPosts,
-  postOnePost,
+  createPost,
   getPost,
-  postComment,
+  commentPost,
+  likePost,
+  unlikePost,
+  deletePost,
 } = require('./controllers/posts');
 const {
   signup,
@@ -19,9 +22,12 @@ const {
 
 // posts routes
 app.get('/posts', getAllPosts);
-app.post('/posts', FBAuth, postOnePost);
+app.post('/posts', FBAuth, createPost);
 app.get('/posts/:postId', getPost);
-app.post('/posts/:postId/comment', FBAuth, postComment);
+app.delete('/posts/:postId', FBAuth, deletePost);
+app.post('/posts/:postId/comment', FBAuth, commentPost);
+app.get('/posts/:postId/like', FBAuth, likePost);
+app.get('/posts/:postId/unlike', FBAuth, unlikePost);
 
 // users routes
 app.post('/signup', signup);
