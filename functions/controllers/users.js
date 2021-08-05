@@ -5,6 +5,7 @@ firebase.initializeApp(config);
 const {
   validateSignupData,
   validateLoginData,
+  reduceUserDetails,
 } = require('../utils/validators');
 
 exports.signup = async (req, res) => {
@@ -82,6 +83,41 @@ exports.login = async (req, res) => {
     } else {
       return res.status(500).json({ error: err.code });
     }
+  }
+};
+
+exports.addUserDetails = async (req, res) => {
+  let userDetails = reduceUserDetails(req.body);
+
+  try {
+    await db.doc(`/users/${req.user.handle}`).update(userDetails);
+    return res.json({ message: 'Details added succesfully' });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({ error: err.code });
+  }
+};
+
+exports.getUserDetails = async (req, res) => {
+  let userData = {};
+  try {
+    let doc = await db.doc(`/users/${req.user.handle}`).get();
+    if (doc.exists) {
+      userData.credentials = doc.data();
+
+      let likes = await db
+        .collection('likes')
+        .where('userHandle', '==', req.user.handle)
+        .get();
+      userData.likes = [];
+      likes.forEach((doc) => {
+        userData.likes.push(doc.data());
+      });
+      return res.json(userData);
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.code });
   }
 };
 
