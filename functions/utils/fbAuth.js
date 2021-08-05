@@ -22,6 +22,7 @@ module.exports = async (req, res, next) => {
       .limit(1)
       .get();
     req.user.handle = data.docs[0].data().handle;
+    req.user.imageUrl = data.docs[0].data().imageUrl;
     return next();
   } catch (err) {
     console.error('Error while veryfying token', err);

@@ -3,7 +3,12 @@ const app = require('express')();
 
 const FBAuth = require('./utils/fbAuth');
 
-const { getAllPosts, postOnePost } = require('./controllers/posts');
+const {
+  getAllPosts,
+  postOnePost,
+  getPost,
+  postComment,
+} = require('./controllers/posts');
 const {
   signup,
   login,
@@ -15,6 +20,8 @@ const {
 // posts routes
 app.get('/posts', getAllPosts);
 app.post('/posts', FBAuth, postOnePost);
+app.get('/posts/:postId', getPost);
+app.post('/posts/:postId/comment', FBAuth, postComment);
 
 // users routes
 app.post('/signup', signup);
