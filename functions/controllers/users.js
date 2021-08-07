@@ -100,18 +100,39 @@ exports.addUserDetails = async (req, res) => {
 
 exports.getUserDetails = async (req, res) => {
   let userData = {};
+  let userDocRef = db.doc(`/users/${req.user.handle}`);
+  let likesColRef = db
+    .collection('likes')
+    .where('userHandle', '==', req.user.handle);
+  let notificantionsColRef = db
+    .collection('notifications')
+    .where('receiver', '==', req.user.handle)
+    .orderBy('createdAt', 'desc')
+    .limit(10);
+
   try {
-    let doc = await db.doc(`/users/${req.user.handle}`).get();
+    let doc = await userDocRef.get();
     if (doc.exists) {
       userData.credentials = doc.data();
 
-      let likes = await db
-        .collection('likes')
-        .where('userHandle', '==', req.user.handle)
-        .get();
+      let likes = await likesColRef.get();
       userData.likes = [];
       likes.forEach((doc) => {
         userData.likes.push(doc.data());
+      });
+
+      let notifications = await notificantionsColRef.get();
+      userData.notifications = [];
+      notifications.forEach((doc) => {
+        userData.notifications.push({
+          sender: doc.data().sender,
+          receiver: doc.data().receiver,
+          postId: doc.data().postId,
+          read: doc.data().read,
+          type: doc.data().type,
+          createdAt: doc.data().createdAt,
+          notificationId: doc.id,
+        });
       });
       return res.json(userData);
     }
@@ -184,4 +205,55 @@ exports.uploadImage = (req, res) => {
   });
 
   busboy.end(req.rawBody);
+};
+
+exports.getUser = async (req, res) => {
+  let userData = {};
+  const userDocRef = db.doc(`/users/${req.params.userId}`);
+  const userPostsColRef = db
+    .collection('posts')
+    .where('userHandle', '==', req.params.userId)
+    .orderBy('createdAt', 'desc');
+
+  try {
+    let userDoc = await userDocRef.get();
+    if (userDoc.exists) {
+      userData.user = userDoc.data();
+
+      let userPostsCol = await userPostsColRef.get();
+      userData.posts = [];
+      userPostsCol.forEach((doc) => {
+        userData.posts.push({
+          userHandle: doc.data().userHandle,
+          userImage: doc.data().userImage,
+          body: doc.data().body,
+          createdAt: doc.data().createdAt,
+          likeCount: doc.data().likeCount,
+          commentCount: doc.data().commentCount,
+          postId: doc.id,
+        });
+      });
+      res.json({ userData });
+    } else {
+      res.status(404).json({ error: 'User not found' });
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.code });
+  }
+};
+
+exports.readNotifications = async (req, res) => {
+  let batch = db.batch();
+  req.body.forEach((notificationId) => {
+    const notificationDocRef = db.doc(`/notifications/${notificationId}`);
+    batch.update(notificationDocRef, { read: true });
+  });
+
+  try {
+    await batch.commit();
+    res.json({ message: 'Notifications marked read' });
+  } catch (err) {
+    res.status(500).json({ error: err.code });
+  }
 };

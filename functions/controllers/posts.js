@@ -12,6 +12,7 @@ exports.getAllPosts = async (req, res) => {
         postId: doc.id,
         body: doc.data().body,
         userHandle: doc.data().userHandle,
+        userImage: doc.data().userImage,
         createdAt: doc.data().createdAt,
       });
     });
