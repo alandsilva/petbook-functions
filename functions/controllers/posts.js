@@ -13,6 +13,8 @@ exports.getAllPosts = async (req, res) => {
         body: doc.data().body,
         userHandle: doc.data().userHandle,
         userImage: doc.data().userImage,
+        commentCount: doc.data().commentCount,
+        likeCount: doc.data().likeCount,
         createdAt: doc.data().createdAt,
       });
     });
@@ -64,7 +66,7 @@ exports.getPost = async (req, res) => {
       return postData.comments.push(commentDoc.data());
     });
 
-    return res.json({ postData });
+    return res.json(postData);
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: err.code });
@@ -94,6 +96,7 @@ exports.commentPost = async (req, res) => {
     await commentColRef.add(newComment);
     res.json(newComment);
   } catch (err) {
+    console.log('Error adding commnet!');
     console.error(err);
     res.status(500).json({ error: err.code });
   }

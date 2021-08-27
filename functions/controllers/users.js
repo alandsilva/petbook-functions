@@ -66,22 +66,30 @@ exports.login = async (req, res) => {
 
   // Validate data
   const { errors, valid } = validateLoginData(user);
-  if (!valid) return res.status(400).json(errors);
+  if (!valid) res.status(400).json(errors);
 
   try {
     const data = await firebase
       .auth()
       .signInWithEmailAndPassword(user.email, user.password);
     const token = await data.user.getIdToken();
-    return res.json({ token });
+    res.json({ token });
   } catch (err) {
     console.error(err);
-    if (err.code === 'auth/wrong-password') {
-      return res
-        .status(403)
-        .json({ general: 'Wrong credentials, please try again' });
-    } else {
-      return res.status(500).json({ error: err.code });
+    switch (err.code) {
+      case 'auth/wrong-password':
+        res
+          .status(403)
+          .json({ general: 'Wrong credentials, please try again' });
+      case 'auth/invalid-email':
+        res.status(403).json({ email: 'Please enter a valid e-mail' });
+
+      case 'auth/user-not-found':
+        res
+          .status(403)
+          .json({ general: 'User with this email does not exist' });
+      default:
+        res.status(500).json({ error: err.code });
     }
   }
 };
@@ -233,7 +241,7 @@ exports.getUser = async (req, res) => {
           postId: doc.id,
         });
       });
-      res.json({ userData });
+      res.json(userData);
     } else {
       res.status(404).json({ error: 'User not found' });
     }
