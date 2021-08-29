@@ -4,6 +4,9 @@ const { db } = require('./utils/admin');
 
 const FBAuth = require('./utils/fbAuth');
 
+const cors = require('cors');
+app.use(cors());
+
 const {
   getAllPosts,
   createPost,
